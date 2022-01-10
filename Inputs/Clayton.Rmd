@@ -1,0 +1,198 @@
+---
+title: "Perceived Accuracy of Fake News and Misinformation Discernment"
+author: "Dan Xu"
+date: "1/10/2022"
+output: 
+  bookdown::pdf_document2:
+    toc: false
+abstract: |
+  This project is a replication of @clayton2019partisan's article titled "[Partisan motivated reasoning and misinformation in the media: Is news from ideologically uncongenial sources more suspicious?](https://www.cambridge.org/core/journals/japanese-journal-of-political-science/article/partisan-motivated-reasoning-and-misinformation-in-the-media-is-news-from-ideologically-uncongenial-sources-more-suspicious/BCD0B8E0558FD72E8A3E0931FCB4E35A#article)". Through a survey experiment with a sample of nearly 4000 respondents, @clayton2019partisan find that partisan motivated reasoning is not a predictor of information discernment. I used least absolute deviation analysis to replicate their research, and my results show consistency with their findings. However, I also find that educational attainment and public knowledge are strong predictors of the perceived accuracy of misinformation. In addition, I find that the sample is skewed towards young, white, and educated American populations, and therefore, I recommend using weighting methods to adjust the sample.  
+  
+bibliography: references.bib
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r echo = FALSE, eval=FALSE,message=FALSE, warning = FALSE}
+## the basic R reference
+citation()
+
+## references for a package -- might not have these installed
+if(nchar(system.file(package="tidyverse"))) citation("tidyverse")
+if(nchar(system.file(package="ggplot2"))) citation("ggplot2")
+if(nchar(system.file(package="stargazer"))) citation("stargazer")
+
+## extract the bibtex entry from the return value
+x <- citation()
+toBibtex(x)
+```
+
+
+```{r echo = FALSE, message=FALSE, warning = FALSE}
+library(tidyverse)
+library(ggplot2)
+library(stargazer)
+library(estimatr)
+library(LadR)
+library(L1pack)
+```
+
+
+# Introduction 
+
+The prevalence of misinformation and disinformation in media has driven scholars to examine the mechanisms and effects of how such incorrect information shapes our knowledge and beliefs of the society and political system. In recent years, the literature on motivated reasoning has been burgeoning in studies of misinformation acceptance and denial. How does misinformation structure our political thinking? To address this overarching question, many political psychologists have examined the interplay between two mechanisms: partisan motivated reasoning and misinformation discernment. 
+
+Motivated reasoning refers to the cognitive process where individuals evaluate and integrate information using rational calculations to form opinions and attitudes [@kunda1990case;@epley2016mechanics]. In political contexts, individuals seek information in congruence to their pre-existing attitudes to solidify and maintain harmony for their beliefs. When making a political decision, individuals usually rely on such heuristics to judge the veracity and quality of information they receive, and assimilate new information in an efficient and sometimes biased manner. Empirical evidence has demonstrated that motivated reasoning helps people arrive at conclusions that are free from given information at hand and protect one's political beliefs and identities [@bolsen2014influence;@redlawsk2002hot]. In the case of political misinformation, motivated reasoning is believed to facilitate the psychological process of confirming and accepting new (mis)information that is congenial to attitude-congruent messages.
+
+@clayton2019partisan's work examines the influence of partisan motivated reasoning on public opinion and attitudes. The very fundamental question that @clayton2019partisan sought to address is whether people use congeniality of the information sources to assess the veracity of information. To answer this question, they administered a survey experiment on Amazon Mechanical Turk in July 2017 based on a sample of 3,932 respondents (N = 3,932). They find that political ideology and affiliation are associated with perceived accuracy of misinformation, but partisan motivated reasoning is not the machanism for individuals to assess information. 
+
+The replication is structured as follows. First, I reexamined the research method and characteristics of the sample. Second, I constructed a statistical model to fit the data. Finally, I discussed the results in relation to motivated reasoning in misinformation acceptance. 
+
+
+# Data and method 
+In this section, I re-examined the characteristics of the sample. The following analyses were conducted using R and R packages [@lees;@r]. 
+```{r echo = FALSE, message=FALSE, warning = FALSE}
+#load data 
+data <- readRDS("replication_data.RDS")
+```
+
+## Participants 
+@clayton2019partisan conducted a survey experiment in the summer of 2017 to examine the role of motivated reasoning on misinformation acceptance on social media. Specifically, @clayton2019partisan recruited 3932 respondents through Amazon Mechanical Turk. 
+
+### Sample characteristics
+There are four demographic variables in total, namely age, gender, education, race.
+
+```{r fig1, echo=FALSE, fig.cap="Gender Distribution of the Sample",warning=FALSE,message=FALSE,fig.height=4,fig.width = 4,fig.pos="H"}
+data %>% 
+  ggplot(aes(gender),
+         stat = "identity", position = "dodge")+
+  geom_bar(aes(y = (..count..)/sum(..count..))) +
+  scale_y_continuous(labels=scales::percent) +
+  scale_fill_brewer(palette="Greys")+
+  ylab("relative frequencies")+
+   theme_minimal() +
+  # facet_grid(~gender)+
+  scale_y_continuous(labels = scales::percent) +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1))
+```
+
+Figure \ref{fig:fig1} shows the sample distribution by gender. In general, the ratio of males to females in the sample approximately reflects the sex ratio of the U.S. population, with the proportion of male respondents slightly higher than that of female respondents. However, there are fewer men than women in real life, and thus male respondents are over-represented. 
+
+```{r fig2, echo=FALSE, fig.cap="Age Groups by Gender",warning=FALSE,message=FALSE,fig.height=4,fig.pos="H"}
+data %>% 
+  ggplot(aes(age),
+         stat = "identity", position = "dodge")+
+  geom_bar(aes(y = (..count..)/sum(..count..))) +
+  scale_y_continuous(labels=scales::percent) +
+  scale_fill_brewer(palette="Greys")+
+  ylab("relative frequencies")+
+   theme_minimal() +
+  facet_grid(~gender)+
+  scale_y_continuous(labels = scales::percent) +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1))
+```
+
+Figure \ref{fig:fig2} shows the age groups of the sample. As shown in Figure \ref{fig:fig2}, the sample population is concentrated around the age group of 25-34,suggesting that the sample is skewed towards younger adults. 
+
+```{r fig3, echo=FALSE, fig.cap="Education Level by Gender",warning=FALSE,message=FALSE,fig.height=4,fig.pos="H"}
+data %>% 
+  ggplot(aes(education),
+         stat = "identity", position = "dodge")+
+  geom_bar(aes(y = (..count..)/sum(..count..))) +
+  scale_y_continuous(labels=scales::percent) +
+  scale_fill_brewer(palette="Greys")+
+  ylab("relative frequencies")+
+   theme_minimal() +
+  facet_grid(~gender)+
+  scale_y_continuous(labels = scales::percent) +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1))
+```
+
+Additionally, we observe that in Figure \ref{fig:fig3}, respondents with a college or higher degree are over-represented compared to those with a non-college degree. However, fewer than 50% of the U.S. population in reality have received a college degree or higher. Therefore, the sample is skewed towards college educated populations. 
+
+```{r fig4, echo=FALSE, fig.cap="Race by Gender",warning=FALSE,message=FALSE,fig.height=4,fig.pos="H"}
+data %>% 
+  ggplot(aes(race, fill=gender),
+         stat = "identity", position = "dodge")+
+  geom_bar(aes(y = (..count..)/sum(..count..))) +
+  scale_y_continuous(labels=scales::percent) +
+  scale_fill_brewer(palette="Greys")+
+  ylab("relative frequencies")+
+   theme_minimal() +
+  facet_grid(~gender)+
+  scale_y_continuous(labels = scales::percent)
+```
+
+As shown in Figure \ref{fig:fig4}, white respondents account for more than 70% of the sample, which suggests that the sample is disproportionately skewed towards the white population of the US. 
+
+Given the analysis above, the sample is skewed towards educated, white, and young individuals. Survey data need to be weighted to represent the actual American population.
+
+## Stimuli
+This study is conventionally 2 by 2 factorial experiment, where respondents were randomly assigned to six conditions in which they received an article relevant to healthcare reform. The content of the article each group received was exactly identical, with only a few changes. In this experiment, the veracity of information was conceptualized as the age by which young adults are allowed to remain on their parents' health insurance policy. Specifically, half of the survey takers were informed that the age was 18, and 26 for the other half. The other manipulation was information source. Half of the respondents were presented with the article referencing to Fox News (the conservative news outlet) as the information source, and the other respondents were presented with  the article referencing to CNN (the liberal news outlet) as the information source. The experiment was to investigate the perceived accuracy of the headlines presented to the survey participants. 
+
+
+## Statistical models
+
+Instead of runing a OLS regression model, I performed a Least absolute deviation (LAD) to answer the research question. Compared to OLS, LAD has the advantage of being resistant to outlines and robust to departures from the normality assumption. The regression model is specified as $y_i = X_i\beta + \gamma$, where $y_i$ measures the perceived accuracy of the false statement; $X_i$ refers to the independent variables, such as partisanship, ideology, veracity of the information, information source, and demographic variables.  
+
+$$
+\min_{\beta}\sum_{k=1}^n |\gamma|
+$$
+
+The model estimates the coefficients that minimizes the sum of the absolute residuals.
+
+
+# Results 
+
+```{r echo=FALSE}
+lm <- lm(formula = outcome1 ~ source + false + ideology + partisanship, data = data)
+
+
+# with all the d emograhpic information 
+lm1 <- lm(formula = outcome1 ~source + false + ideology + partisanship+ age+gender + education + knowledge + trust, data = data)
+
+```
+
+```{r table, echo = FALSE, message=FALSE, results = 'asis', echo=FALSE, warning=FALSE}
+stargazer(lm,lm1,
+          header = FALSE,
+          type = "latex",
+          # digits=2, 
+          # float = FALSE,
+          label = "tab:table4",
+          # report = "vc*",
+          # column.labels = c("Negative binomial regression model","Quasi-Poisson regression model"),
+          style = "apsr",
+          # align = TRUE,   
+          title = "Determinants of Misinformation Acceptance",
+          covariate.labels = c("Source (CNN)", "Source (Fox News)", "Article type (False)", "Conservative",
+              "Liberal", "Republican", "Democrat","Partisanship (Other)", "25-34","35-44","45-54","55 or older", "Female","Non-binary","College","Knowledge(High)","Trust (High)"),
+          dep.var.labels = c("Perceived Accuracy of New Headlines", "Perceived Accuracy of New Headlines (A\\&G)"), 
+          keep.stat = c("n", "null.dev", "res.dev"), 
+          notes = "Regression models.")
+```
+
+
+
+\label{tab:table}
+
+The dependent variable in this study is the perceived accuracy of the false statement presented to the survey respondents. In the reduced model without demographic variables, the regression models show support to @clayton2019partisan's work. See details in Table \@ref(tab:table). One of the key variables in this study is the belief in whether a news article is true or false. The results show that that the belief or judgment in the veracity of the information presented to the respondents is a statistically significant variable at the level of .01. A one unit increase in the belief that the information is false is associated with a 1.840 unit increase in perceived accuracy of the news article holding other variables constant. To interpret, people are more likely to judge the accuracy of information if they believe the information is false. Partisanship is another factor that is associated with the independent variable: Compared to Independents, Republicans are less likely to discern misinformation (p <.001).
+
+To investigate the relationship between the dependent variable and all the other possible variables, including demographic variables. I performed a full regression model in which all the variables were included. The results show robust evidence to @clayton2019partisan work. Similarly, belief in the veracity of the news article and partisanship were positively and negatively, respectively, associated with perceived accuracy of the information (p<.01). However, the results also show that education attainment and public knowledge are both two strong predictors of information acceptance. In comparison to less educated respondents, respondents with a college degree or higher are less likely to perceive the false statement as factual (p<.01). Likewise, for public knowledge, those with higher public knowledge are less likely to perceive the false statement as factual. In other words, they are more likely to judge the accuracy of the false statement. 
+
+# Discussion 
+
+In general, the research results were successfully replicated. Partisanship and the veracity of information (whether the article was true or false) were related to perceived accuracy of the false statement (in the news article pertaining to the healthcare reform). However, there are a few caveats that need to be addressed in future work. 
+
+First, the sample is skewed towards young, educated, and white population. Surprisingly, this issue has not been addressed nor even mentioned by @clayton2019partisan. Even though the sample size is large enough to generate generalizability, but the imbalances between the survey sample and the population still need to be corrected in order to ensure representativeness of the sample. For future research, I would recommend adjusting the data set using the set of demographics, including gender, age, race and ethnicity, educational attainment, and geographic region to reduce selection bias. Statistical methods, such as raking and propensity weighting, could be used to weight the survey data.
+
+Second, the theoretical framework @clayton2019partisan delineate appears to be disconnected to the research design. In the experiment, where research participants were exposed to two types of headlines congenial to their political preferences, motivated reasoning was operationalized as perceived accuracy of news information. However, the difference between the two news articles presented to survey respondents is the age for young adults to stay on their parents' insurance policy. In one condition, the respondents were told that the age was 26, which is classified as factual information; In the other condition, the respondents were told that the age was 18, which is classified as false information. This single-item approach to measuring the perception of misinformation may invite reliability and validity issues. The question itself seems to test respondents' knowledge about the health care reform instead of their psychological reasoning abilities to determine if the news story was accurate or not. I would recommend using multiple items to address this very problem, and to better understand the mechanisms of motivated reasoning in information acceptance and denial. Furthermore, the theory that might be better applied to this study is Selective Exposure in my opinion. Motivated reasoning is a central theoretical concept in academic discourse across the fields of psychology, political science, and information studies, and it entails the power of prior beliefs in information acceptance. However, in this case, the decision making process for the research respondents may not be attributed to prior political beliefs or preferences. Numerical literacy and policy knowledge seem to be a better explanation to their selective exposure to information.   
+
+The exclusion of demographic variables in data analysis demands a proper rationale. In the study, @clayton2019partisan only include the veracity of the news article, the information source as independent variables in their statistical models, while the other variables, such as gender, educational attainment, race and ethnicity, region of residence are excluded. When I included the demographic variables in my regression models, education and public knowledge were statistically significant variables. It remains unclear that why such demographic variables were not taken into consideration. It is likely that an individual's age, gender, educational level, trust in public authorities, policy knowledge and political sophistication may play an important role in information processing. 
+
+
+\newpage
+# References 
